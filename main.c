@@ -2,189 +2,95 @@
 #include <malloc.h>
 #include <limits.h>
 #include <memory.h>
+#include <stdbool.h>
 
-struct matrix_t {
-    int **matrix;
-    bool **stars;
-    int columns;
-    int rows;
-};
+#include "count_utils.h"
+#include "math_utils.h"
+#include "find_utils.h"
+#include "allocation_utils.h"
 
-int min(int first, int second) {
-    return first < second
-           ? first
-           : second;
-}
 
-int *findColumnMinimums(struct matrix_t matrix) {
-    int *columnMinimums = (int *) malloc(matrix.columns);
+bool *getSelectedColumns(struct matrix_t matrix, const int *columnsStars) {
+    bool *selectedColumns = (bool *) calloc(sizeof(bool), matrix.columns);
 
-    if (columnMinimums == NULL) {
-        printf("Unable to allocate memory for columnMinimums");
-        return NULL;
-    }
+    int columnIndexLeft = 0;
+    int columnIndexRight = matrix.columns - 1;
 
-    for (int columnIndex = 0; columnIndex < matrix.columns; ++columnIndex) {
-        int rowIndexLeft = 0;
-        int rowIndexRight = matrix.rows - 1;
-
-        int minimum = INT_MAX;
-        while (rowIndexLeft < rowIndexRight) {
-            int left = matrix.matrix[rowIndexLeft][columnIndex];
-            int right = matrix.matrix[rowIndexRight][columnIndex];
-
-            minimum = min(minimum, min(left, right));
-
-            ++rowIndexLeft;
-            --rowIndexRight;
+    while (columnIndexLeft < columnIndexRight) {
+        if (columnsStars[columnIndexLeft] == 1) {
+            selectedColumns[columnIndexLeft] = true;
         }
 
-        columnMinimums[columnIndex] = minimum;
-    }
-
-    return columnMinimums;
-}
-
-int *findRowMinimums(struct matrix_t matrix) {
-    int *rowMinimums = (int *) malloc(matrix.rows);
-
-    if (rowMinimums == NULL) {
-        printf("Unable to allocate memory for rowMinimums");
-        return NULL;
-    }
-
-    for (int rowIndex = 0; rowIndex < matrix.columns; ++rowIndex) {
-        int columnIndexLeft = 0;
-        int columnIndexRight = matrix.rows - 1;
-
-        int minimum = INT_MAX;
-        while (columnIndexLeft < columnIndexRight) {
-            int left = matrix.matrix[rowIndex][columnIndexLeft];
-            int right = matrix.matrix[rowIndex][columnIndexRight];
-
-            minimum = min(minimum, min(left, right));
-
-            ++columnIndexLeft;
-            --columnIndexRight;
+        if (columnsStars[columnIndexRight] == 1) {
+            selectedColumns[columnIndexRight] = true;
         }
 
-        rowMinimums[rowIndex] = minimum;
+        ++columnIndexLeft;
+        --columnIndexRight;
     }
 
-    return rowMinimums;
+    return selectedColumns;
 }
 
-void subtractColumnMinimum(struct matrix_t matrix, const int *columnMinimums) {
-    int minimum;
-    for (int columnIndex = 0; columnIndex < matrix.columns; ++columnIndex) {
-        int rowIndexLeft = 0;
-        int rowIndexRight = matrix.rows - 1;
+void func(struct matrix_t matrix) {
+    int starsAmount = findStars(matrix);
 
-        minimum = columnMinimums[columnIndex];
+    while (starsAmount < matrix.columns) {
+        bool *selectedColumns = getSelectedColumns(matrix, countColumnsStars(matrix));
+        bool *selectedRows = (bool *) calloc(sizeof(bool), matrix.rows);
 
-        while (rowIndexLeft < rowIndexRight) {
-            matrix.matrix[rowIndexLeft][columnIndex] -= minimum;
-            matrix.matrix[rowIndexRight][columnIndex] -= minimum;
+        struct cell_t stroke = {-1, -1};
 
-            ++rowIndexLeft;
-            --rowIndexRight;
-        }
-    }
-}
+        while (true) {
+            stroke = findStroke(matrix);
 
-void subtractRowMinimum(struct matrix_t matrix, const int *rowMinimums) {
-    int minimum;
-    for (int rowIndex = 0; rowIndex < matrix.rows; ++rowIndex) {
-        int columnIndexLeft = 0;
-        int columnIndexRight = matrix.rows - 1;
+            if (stroke.rowIndex == -1) {
+                int localMinimum = findLocalMinimum(&matrix);
 
-        minimum = rowMinimums[rowIndex];
+                for (int columnIndex = 0; columnIndex < matrix.columns; ++columnIndex) {
+                    if (selectedColumns[columnIndex]) {
+                        subtractInColumn(&matrix, localMinimum, columnIndex);
+                    }
+                }
 
-        while (columnIndexLeft < columnIndexRight) {
-            matrix.matrix[rowIndex][columnIndexLeft] -= minimum;
-            matrix.matrix[rowIndex][columnIndexRight] -= minimum;
+                for (int rowIndex = 0; rowIndex < matrix.rows; ++rowIndex) {
+                    if (selectedRows[rowIndex]) {
+                        subtractInRow(&matrix, -localMinimum, rowIndex);
+                    }
+                }
 
-            ++columnIndexLeft;
-            --columnIndexRight;
-        }
-    }
-}
+                stroke = findStroke(matrix);
+            }
 
-int countStarsInRow(struct matrix_t matrix, int rowIndex) {
-    int counter = 0;
-    for (int columnIndex = 0; columnIndex < matrix.columns; ++columnIndex) {
-        if (matrix.stars[rowIndex][columnIndex]) {
-            ++counter;
-        }
-    }
+            matrix.strokeMatrix[stroke.rowIndex][stroke.columnIndex] = 1;
 
-    return counter;
-}
+            struct cell_t star = {-1, -1};
 
-int countStarsInColumn(struct matrix_t matrix, int columnIndex) {
-    int counter = 0;
-    for (int rowIndex = 0; rowIndex < matrix.rows; ++rowIndex) {
-        if (matrix.stars[rowIndex][columnIndex]) {
-            ++counter;
-        }
-    }
-
-    return counter;
-}
-
-bool allocateMemoryForStars(struct matrix_t matrix) {
-    matrix.stars = (bool **) malloc(matrix.rows);
-
-    if (matrix.stars == NULL) {
-        printf("Unable to allocate memory for stars");
-        return false;
-    }
-    for (int rowIndex = 0; rowIndex < matrix.rows; ++rowIndex) {
-        matrix.stars[rowIndex] = (bool *) malloc(matrix.columns);
-        if (matrix.stars[rowIndex] == NULL) {
-            printf("Unable to allocate memory for stars row");
-            return false;
-        }
-
-        memset(matrix.stars[rowIndex], 0, matrix.columns);
-    }
-
-    return true;
-}
-
-bool **findStars(struct matrix_t matrix) {
-    for (int columnIndex = 0; columnIndex < matrix.columns; ++columnIndex) {
-        for (int rowIndex = 0; rowIndex < matrix.rows; ++rowIndex) {
-            if (matrix.matrix[rowIndex][columnIndex] == 0) {
-                int starsAmount = countStarsInRow(matrix, rowIndex) +
-                                  countStarsInColumn(matrix, columnIndex);
-
-                if (starsAmount == 0) {
-                    matrix.stars[rowIndex][columnIndex] = true;
+            int rowIndex = stroke.rowIndex;
+            for (int columnIndex = 0; columnIndex < matrix.columns; ++columnIndex) {
+                if (matrix.stars[rowIndex][columnIndex]) {
+                    star.columnIndex = columnIndex;
+                    star.rowIndex = rowIndex;
                 }
             }
-        }
-    }
-}
 
-int countStars(struct matrix_t matrix) {
-    int counter = 0;
+            if (star.rowIndex == -1) {
+                break;
+            } else {
 
-    for (int rowIndex = 0; rowIndex < matrix.rows; ++rowIndex) {
-        for (int columnIndex = 0; columnIndex < matrix.columns; ++columnIndex) {
-            if (matrix.stars[rowIndex][columnIndex]) {
-                ++counter;
             }
         }
+
+        free(selectedRows);
     }
 
-    return counter;
 }
 
 
 int findMinimum(struct matrix_t matrix) {
-    bool isAllocatedForStars = allocateMemoryForStars(matrix);
-    if (!isAllocatedForStars) {
+    matrix.stars = (bool **) allocate(sizeof(bool), matrix.rows, matrix.columns);
+
+    if (matrix.stars != NULL) {
         printf("Exit from findMinimum. Unable to allocate memory for stars");
         return -1;
     }
@@ -205,9 +111,7 @@ int findMinimum(struct matrix_t matrix) {
 
     subtractRowMinimum(matrix, rowMinimums);
 
-    findStars(matrix);
 
-    int starsAmount = countStars(matrix);
 }
 
 
