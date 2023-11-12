@@ -6,6 +6,7 @@
 #define PPP_MATRIX_H
 
 struct matrix_t {
+    int** startMatrix;
     int **matrix;
     bool **stars;
     int **selection;

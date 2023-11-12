@@ -32,7 +32,7 @@ bool *getSelectedColumns(struct matrix_t matrix, const int *columnsStars) {
     return selectedColumns;
 }
 
-void func(struct matrix_t matrix) {
+void calculateStarsMatrix(struct matrix_t matrix) {
     int starsAmount = findStars(matrix);
 
     while (starsAmount < matrix.columns) {
@@ -77,15 +77,65 @@ void func(struct matrix_t matrix) {
             if (star.rowIndex == -1) {
                 break;
             } else {
+                subtractInColumn(&matrix, 1, star.columnIndex);
+                selectedColumns[star.columnIndex] = 0;
 
+                subtractInRow(&matrix, -1, star.rowIndex);
+                selectedRows[star.columnIndex] = 1;
             }
         }
 
+        int rowIndex = stroke.rowIndex;
+        int columnIndex = stroke.columnIndex;
+
+        while (rowIndex > 0 && rowIndex < matrix.rows
+               && columnIndex > 0 && columnIndex < matrix.columns) {
+            matrix.strokeMatrix[rowIndex][columnIndex] = 0;
+            matrix.stars[rowIndex][columnIndex] = 1;
+
+            int rowIterator = 0;
+            while (rowIterator <= matrix.rows
+                   && (matrix.stars[rowIterator][columnIndex] != 1 || rowIterator == rowIndex)) {
+                ++rowIterator;
+            }
+
+            if (rowIterator <= matrix.rows) {
+                int columnIterator = 0;
+                while (columnIterator < matrix.columns
+                       && (matrix.strokeMatrix[rowIterator][columnIterator] != 1 || columnIterator == columnIndex)) {
+                    ++columnIterator;
+                }
+
+                if (columnIterator < matrix.columns) {
+                    matrix.stars[rowIndex][columnIndex] = 0;
+                }
+
+                columnIndex = columnIterator;
+            }
+
+            rowIndex = rowIterator;
+        }
+
+        starsAmount = countStars(matrix);
+
         free(selectedRows);
     }
-
 }
 
+
+int getFinalResult(struct matrix_t *matrix) {
+    int result = 0;
+
+    for (int rowIndex = 0; rowIndex < (*matrix).rows; ++rowIndex) {
+        for (int columnIndex = 0; columnIndex < (*matrix).columns; ++columnIndex) {
+            if ((*matrix).stars[rowIndex][columnIndex]) {
+                result += (*matrix).startMatrix[rowIndex][columnIndex];
+            }
+        }
+    }
+
+    return result;
+}
 
 int findMinimum(struct matrix_t matrix) {
     matrix.stars = (bool **) allocate(sizeof(bool), matrix.rows, matrix.columns);
@@ -111,6 +161,9 @@ int findMinimum(struct matrix_t matrix) {
 
     subtractRowMinimum(matrix, rowMinimums);
 
+    calculateStarsMatrix(matrix);
+
+    return getFinalResult(&matrix);
 
 }
 

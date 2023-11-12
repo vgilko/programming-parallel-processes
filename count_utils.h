@@ -50,4 +50,21 @@ int *countColumnsStars(struct matrix_t matrix) {
     return columnsStarsAmount;
 }
 
+int countStars(struct matrix_t matrix) {
+    int starsAmount = 0;
+
+    int rowIndexLeft = 0;
+    int rowIndexRight = matrix.columns - 1;
+
+    while (rowIndexLeft < rowIndexRight) {
+        starsAmount += countStarsInRow(matrix, rowIndexLeft);
+        starsAmount += countStarsInRow(matrix, rowIndexRight);
+
+        ++rowIndexLeft;
+        --rowIndexRight;
+    }
+
+    return starsAmount;
+}
+
 #endif //PPP_COUNT_UTILS_H
