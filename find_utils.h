@@ -99,10 +99,10 @@ int findStars(struct matrix_t *matrix) {
 
 
 struct cell_t findStroke(struct matrix_t *matrix) {
-    struct cell_t stroke;
+    struct cell_t stroke = {-1, -1};
 
-    for (int rowIndex = 0; rowIndex < matrix->rows; ++rowIndex) {
-        for (int columnIndex = 0; columnIndex < matrix->columns; ++columnIndex) {
+    for (int columnIndex = 0; columnIndex < matrix->columns; ++columnIndex) {
+        for (int rowIndex = 0; rowIndex < matrix->rows; ++rowIndex) {
             if (matrix->selection[rowIndex][columnIndex] == 0 &&
                 matrix->matrix[rowIndex][columnIndex] == 0) {
                 stroke.columnIndex = columnIndex;
